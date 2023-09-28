@@ -1,3 +1,10 @@
+                                                                                                                 
+
+//     Website: https://trivaicrack.com
+//     X: https://twitter.com/trivaicrack
+//     Telegram: https://t.me/trivaicrack
+//     Telegram Gamebot: https://t.me/trivaicrackbot
+
 pragma solidity ^0.8.16;
 // SPDX-License-Identifier: Unlicensed
 
@@ -173,7 +180,7 @@ contract TRIVAI is Ownable, IERC20 {
     address private constant DEAD_WALLET = 0x000000000000000000000000000000000000dEaD;
     address private constant ZERO_WALLET = 0x0000000000000000000000000000000000000000;
 
-    address private routerAddress = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
+    address private routerAddress = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
     string constant private _name = "TrivAI Crack";
     string constant private _symbol = "TRIVAI";
@@ -188,12 +195,10 @@ contract TRIVAI is Ownable, IERC20 {
 
     uint256 public liquidityFee = 0;
     uint256 public marketingFee = 5;
-    uint256 public prizeFee = 4;
-    uint256 public utilityFee = 1;
     uint256 public nativeFee = 0;
 
-    uint256 public totalFee = 10;
-    uint256 public totalFeeIfSelling = 10;
+    uint256 public totalFee = 5;
+    uint256 public totalFeeIfSelling = 5;
 
     bool public takeBuyFee = true;
     bool public takeSellFee = true;
@@ -201,8 +206,6 @@ contract TRIVAI is Ownable, IERC20 {
 
     address private autoLiquidityReceiver;
     address private marketingWallet;
-    address private prizeWallet;
-    address private utilityWallet;
     address private nativeWallet;
 
     DexRouter public router;
@@ -211,10 +214,7 @@ contract TRIVAI is Ownable, IERC20 {
 
 
     uint256 public launchedAt;
-    bool public tradingOpen = false;
-    bool public blacklistMode = false;
-    bool public canUseBlacklist = false;
-    mapping(address => bool) public isBlacklisted;
+    bool public tradingOpen = true;
 
     bool private inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
@@ -222,7 +222,7 @@ contract TRIVAI is Ownable, IERC20 {
 
     uint256 public swapThreshold = _totalSupply * 4 / 2000;
 
-    event AutoLiquify(uint256 amountBNB, uint256 amountBOG);
+    event AutoLiquify(uint256 amountETH, uint256 amountBOG);
 
     modifier lockTheSwap {
         inSwapAndLiquify = true;
@@ -249,13 +249,11 @@ contract TRIVAI is Ownable, IERC20 {
         isTxLimitExempt[DEAD_WALLET] = true;
 
         autoLiquidityReceiver = msg.sender;
-        marketingWallet = 0xE574253E7Cc13f904a4B7dB82F5445C92Fb1c5D7; // Wallet for marketing 
-        prizeWallet = 0x014B3Da6dE91300a6F9772b7f6B89b352C0Bb1eB;// Wallet for competition prizes
-        utilityWallet = 0xFa2E6cd4d0A129aBCA9Eca3Cf30d16f792d9fa12;//  Wallet to cover operation costs
-        nativeWallet = 0xA1826614D99f49c3fBD4ffC7A12b08EF66E841E3;//  Deployer
+        marketingWallet = 0xE574253E7Cc13f904a4B7dB82F5445C92Fb1c5D7; // marketing 
+        nativeWallet = 0xbAfB2D008bE439500d2616f7c302c74A00de73Ab;//  deployer
 
         isFeeExempt[marketingWallet] = true;
-        totalFee = liquidityFee.add(marketingFee).add(utilityFee).add(nativeFee).add(prizeFee);
+        totalFee = liquidityFee.add(marketingFee).add(nativeFee);
         totalFeeIfSelling = totalFee;
 
         _balances[msg.sender] = _totalSupply;
@@ -335,11 +333,6 @@ contract TRIVAI is Ownable, IERC20 {
             launch();
         }    
 
-        // Blacklist
-        if (blacklistMode) {
-            require(!isBlacklisted[sender],"Blacklisted");
-        }
-
         //Exchange tokens
          _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
 
@@ -401,26 +394,20 @@ contract TRIVAI is Ownable, IERC20 {
             block.timestamp
         );
 
-        uint256 amountBNB = address(this).balance;
+        uint256 amountETH = address(this).balance;
 
-        uint256 totalBNBFee = totalFee.sub(nativeFee).sub(liquidityFee.div(2));
+        uint256 totalETHFee = totalFee.sub(nativeFee).sub(liquidityFee.div(2));
 
-        uint256 amountBNBLiquidity = amountBNB.mul(liquidityFee).div(totalBNBFee).div(2);
-        uint256 amountBNBMarketing = amountBNB.mul(marketingFee).div(totalBNBFee);
-        uint256 amountBNBUtility = amountBNB.mul(utilityFee).div(totalBNBFee);
-        uint256 amountBNBPrize = amountBNB.mul(prizeFee).div(totalBNBFee);
+        uint256 amountETHLiquidity = amountETH.mul(liquidityFee).div(totalETHFee).div(2);
+        uint256 amountETHMarketing = amountETH.mul(marketingFee).div(totalETHFee);
         
-        (bool tmpSuccess1,) = payable(marketingWallet).call{value : amountBNBMarketing, gas : 30000}("");
+        (bool tmpSuccess1,) = payable(marketingWallet).call{value : amountETHMarketing, gas : 30000}("");
         tmpSuccess1 = false;
 
-        (tmpSuccess1,) = payable(utilityWallet).call{value : amountBNBUtility, gas : 30000}("");
-        tmpSuccess1 = false;
 
-        (tmpSuccess1,) = payable(prizeWallet).call{value : amountBNBPrize, gas : 30000}("");
-        tmpSuccess1 = false;
 
         if (amountToLiquify > 0) {
-            router.addLiquidityETH{value : amountBNBLiquidity}(
+            router.addLiquidityETH{value : amountETHLiquidity}(
                 address(this),
                 amountToLiquify,
                 0,
@@ -428,7 +415,7 @@ contract TRIVAI is Ownable, IERC20 {
                 autoLiquidityReceiver,
                 block.timestamp
             );
-            emit AutoLiquify(amountBNBLiquidity, amountToLiquify);
+            emit AutoLiquify(amountETHLiquidity, amountToLiquify);
         }
     }
 
@@ -443,7 +430,6 @@ contract TRIVAI is Ownable, IERC20 {
     }
 
     function tradingStatus(bool newStatus) public onlyOwner {
-        require(canUseBlacklist, "Can no longer pause trading");
         tradingOpen = newStatus;
     }
 
@@ -465,28 +451,14 @@ contract TRIVAI is Ownable, IERC20 {
         isTxLimitExempt[target] = true;
     }
 
-    function setFees(uint256 newLiqFee, uint256 newMarketingFee, uint256 newPrizeFee, uint256 newUtilityFee, uint256 newNativeFee, uint256 extraSellFee) external onlyOwner {
+    function setFees(uint256 newLiqFee, uint256 newMarketingFee, uint256 newNativeFee, uint256 extraSellFee) external onlyOwner {
         liquidityFee = newLiqFee;
         marketingFee = newMarketingFee;
-        prizeFee = newPrizeFee;
-        utilityFee = newUtilityFee;
         nativeFee = newNativeFee;
 
-        totalFee = liquidityFee.add(marketingFee).add(prizeFee).add(utilityFee).add(nativeFee);
+        totalFee = liquidityFee.add(marketingFee).add(nativeFee);
         totalFeeIfSelling = totalFee + extraSellFee;
         require (totalFeeIfSelling + totalFee < 25);
-    }
-
-    function enable_blacklist(bool _status) public onlyOwner {
-        require(canUseBlacklist, "Can no longer add blacklists");
-        blacklistMode = _status;
-    }
-
-    function manage_blacklist(address[] calldata addresses, bool status) public onlyOwner {
-        require(canUseBlacklist, "Can no longer add blacklists");
-        for (uint256 i; i < addresses.length; ++i) {
-            isBlacklisted[addresses[i]] = status;
-        }
     }
 
     function isAuth(address _address, bool status) public onlyOwner{
@@ -495,14 +467,6 @@ contract TRIVAI is Ownable, IERC20 {
 
     function setPair(address _address, bool status) public onlyOwner{
         isPair[_address] = status;
-    }
-
-    function renounceBlacklist() public onlyOwner{
-        canUseBlacklist = false;
-    }
-
-    function disableBlacklistDONTUSETHIS() public onlyOwner{
-        blacklistMode = false;
     }
 
     function setTakeBuyfee(bool status) public onlyOwner{
@@ -522,11 +486,9 @@ contract TRIVAI is Ownable, IERC20 {
         swapThreshold = newAmount;
     }
 
-    function setFeeReceivers(address newMktWallet, address newUtilityWallet, address newPrizeWallet, address newLpWallet, address newNativeWallet) public onlyOwner{
+    function setFeeReceivers(address newMktWallet, address newLpWallet, address newNativeWallet) public onlyOwner{
         autoLiquidityReceiver = newLpWallet;
         marketingWallet = newMktWallet;
-        prizeWallet = newPrizeWallet;
-        utilityWallet = newUtilityWallet;
         nativeWallet = newNativeWallet;
     }
 
